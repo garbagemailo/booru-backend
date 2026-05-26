@@ -1,0 +1,194 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(64) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(32) NOT NULL DEFAULT 'MEMBER',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(128) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    category VARCHAR(32) NOT NULL DEFAULT 'GENERAL',
+    post_count INTEGER NOT NULL DEFAULT 0,
+    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+    is_deprecated BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tag_aliases (
+    id BIGSERIAL PRIMARY KEY,
+    antecedent_name VARCHAR(255) NOT NULL UNIQUE,
+    consequent_tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tag_implications (
+    id BIGSERIAL PRIMARY KEY,
+    antecedent_tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    consequent_tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE (antecedent_tag_id, consequent_tag_id)
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+    id BIGSERIAL PRIMARY KEY,
+    uploader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    source TEXT,
+    rating VARCHAR(16) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    file_ext VARCHAR(16) NOT NULL,
+    file_size BIGINT NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    md5 VARCHAR(64) NOT NULL,
+    sha256 VARCHAR(128) NOT NULL UNIQUE,
+    tag_string TEXT NOT NULL,
+    parent_post_id BIGINT REFERENCES posts(id) ON DELETE SET NULL,
+    score INTEGER NOT NULL DEFAULT 0,
+    favorites_count INTEGER NOT NULL DEFAULT 0,
+    comment_count INTEGER NOT NULL DEFAULT 0,
+    original_path TEXT NOT NULL,
+    preview_path TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS post_tags (
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (post_id, tag_id)
+);
+
+CREATE TABLE IF NOT EXISTS post_versions (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    updater_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    snapshot_json TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS uploads (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    uploader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    file_name VARCHAR(255) NOT NULL,
+    source TEXT,
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS favorites (
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS post_votes (
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    score INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pools (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT NOT NULL,
+    category VARCHAR(32) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pool_posts (
+    pool_id BIGINT NOT NULL REFERENCES pools(id) ON DELETE CASCADE,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (pool_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS wiki_pages (
+    id BIGSERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL UNIQUE,
+    body TEXT NOT NULL,
+    other_names TEXT NOT NULL DEFAULT '',
+    is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    updater_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS wiki_page_versions (
+    id BIGSERIAL PRIMARY KEY,
+    page_id BIGINT NOT NULL REFERENCES wiki_pages(id) ON DELETE CASCADE,
+    updater_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    title VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    other_names TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS artists (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    other_names TEXT NOT NULL DEFAULT '',
+    group_name VARCHAR(255),
+    urls TEXT NOT NULL DEFAULT '',
+    is_banned BOOLEAN NOT NULL DEFAULT FALSE,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    linked_tag_id BIGINT REFERENCES tags(id) ON DELETE SET NULL,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS post_flags (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    reason TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'OPEN',
+    resolver_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL,
+    resolved_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS post_appeals (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    creator_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    reason TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'OPEN',
+    resolver_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL,
+    resolved_at TIMESTAMP
+);

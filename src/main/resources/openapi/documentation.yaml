@@ -1,0 +1,125 @@
+openapi: 3.0.3
+info:
+  title: Booru Backend API
+  version: 0.3.0
+  description: Danbooru-inspired Ktor backend API.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Logged in
+  /api/v1/posts:
+    get:
+      summary: Search posts
+      parameters:
+        - in: query
+          name: tags
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Post listing
+  /api/v1/posts/upload:
+    post:
+      summary: Upload a post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                tags:
+                  type: string
+                rating:
+                  type: string
+                source:
+                  type: string
+      responses:
+        '201':
+          description: Created
+  /api/v1/notes:
+    get:
+      summary: List notes by post
+      parameters:
+        - in: query
+          name: postId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Notes list
+    post:
+      summary: Create note
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Created
+  /api/v1/tag_subscriptions:
+    get:
+      summary: Current user subscriptions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Subscription list
+    post:
+      summary: Create subscription
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Created
+  /api/v1/moderation/bans:
+    get:
+      summary: List bans
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ban list
+    post:
+      summary: Create ban
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Created
+  /api/v1/moderation/audit_logs:
+    get:
+      summary: Audit log
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Audit log entries
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
