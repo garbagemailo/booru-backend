@@ -16,6 +16,8 @@ internal fun validateRegistrationInput(username: String, email: String, password
     require(username.length in MIN_USERNAME_LENGTH..MAX_USERNAME_LENGTH) {
         "Username must contain $MIN_USERNAME_LENGTH..$MAX_USERNAME_LENGTH characters"
     }
-    require(email.contains("@")) { "Email is invalid" }
+    require(email.isValidRegistrationEmail()) { "Email is invalid" }
     require(password.length >= MIN_PASSWORD_LENGTH) { "Password must contain at least $MIN_PASSWORD_LENGTH characters" }
 }
+
+private fun String.isValidRegistrationEmail(): Boolean = contains("@")
