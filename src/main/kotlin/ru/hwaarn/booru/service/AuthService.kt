@@ -15,11 +15,9 @@ class AuthService(
     private val securityConfig: SecurityConfig,
 ) {
     suspend fun register(username: String, email: String, password: String): AuthResponse {
-        require(username.length in 3..64) { "Username must contain 3..64 characters" }
-        require(email.contains("@")) { "Email is invalid" }
-        require(password.length >= 8) { "Password must contain at least 8 characters" }
-        val normalizedUsername = username.trim()
-        val normalizedEmail = email.trim().lowercase()
+        val normalizedUsername = normalizeUsername(username)
+        val normalizedEmail = normalizeEmail(email)
+        validateRegistrationInput(normalizedUsername, normalizedEmail, password)
         require(userRepository.getUserByUsername(normalizedUsername) == null) { "Username already exists" }
         require(userRepository.getUserByEmail(normalizedEmail) == null) { "Email already exists" }
         val role = if (userRepository.countUsers() == 0L) UserRole.ADMIN else UserRole.MEMBER
@@ -34,7 +32,7 @@ class AuthService(
     }
 
     suspend fun login(request: AuthRequest): AuthResponse? {
-        val normalizedLogin = request.login.trim().let { if (it.contains("@")) it.lowercase() else it }
+        val normalizedLogin = normalizeLogin(request.login)
         val credentials = userRepository.findCredentials(normalizedLogin) ?: return null
         val (id, hash, user) = credentials
         if (!user.isActive) return null
