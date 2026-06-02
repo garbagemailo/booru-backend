@@ -26,7 +26,6 @@ import ru.hwaarn.booru.model.CreateTagSubscriptionRequest
 import ru.hwaarn.booru.model.CreateWikiPageRequest
 import ru.hwaarn.booru.model.ModerationRecordDto
 import ru.hwaarn.booru.model.ModerationRequest
-import ru.hwaarn.booru.model.ModerationRecordStatus
 import ru.hwaarn.booru.model.NoteDto
 import ru.hwaarn.booru.model.PoolCategory
 import ru.hwaarn.booru.model.PoolDto
@@ -376,7 +375,7 @@ class CommunityRepository(
                 it[PostFlags.postId] = request.postId
                 it[PostFlags.creatorId] = userId
                 it[PostFlags.reason] = reason
-                it[PostFlags.status] = ModerationRecordStatus.OPEN
+                it[PostFlags.status] = "OPEN"
                 it[PostFlags.createdAt] = Instant.now()
                 it[PostFlags.resolvedAt] = null
             }.value
@@ -392,7 +391,7 @@ class CommunityRepository(
             val post = Posts.selectAll().where { Posts.id eq request.postId }.singleOrNull() ?: return@dbQuery false
             val status = runCatching { PostStatus.valueOf(post[Posts.status]) }.getOrNull()
             val hasOpenAppeal = PostAppeals.selectAll()
-                .where { (PostAppeals.postId eq request.postId) and (PostAppeals.status eq ModerationRecordStatus.OPEN) }
+                .where { (PostAppeals.postId eq request.postId) and (PostAppeals.status eq "OPEN") }
                 .count() > 0L
             post[Posts.uploaderId].value == userId && status in setOf(PostStatus.DELETED, PostStatus.REJECTED) && !hasOpenAppeal
         }
@@ -403,7 +402,7 @@ class CommunityRepository(
                 it[PostAppeals.postId] = request.postId
                 it[PostAppeals.creatorId] = userId
                 it[PostAppeals.reason] = reason
-                it[PostAppeals.status] = ModerationRecordStatus.OPEN
+                it[PostAppeals.status] = "OPEN"
                 it[PostAppeals.createdAt] = Instant.now()
                 it[PostAppeals.resolvedAt] = null
             }.value
@@ -412,7 +411,7 @@ class CommunityRepository(
     }
 
     suspend fun resolveFlag(id: Long, resolverId: Long, status: String): ModerationRecordDto? = DatabaseFactory.dbQuery {
-        val normalizedStatus = ModerationRecordStatus.normalize(status)
+        val normalizedStatus = status.trim().uppercase()
         val updated = PostFlags.update({ PostFlags.id eq id }) {
             it[PostFlags.status] = normalizedStatus
             it[PostFlags.resolverId] = resolverId
@@ -423,7 +422,7 @@ class CommunityRepository(
     }
 
     suspend fun resolveAppeal(id: Long, resolverId: Long, status: String): ModerationRecordDto? = DatabaseFactory.dbQuery {
-        val normalizedStatus = ModerationRecordStatus.normalize(status)
+        val normalizedStatus = status.trim().uppercase()
         val updated = PostAppeals.update({ PostAppeals.id eq id }) {
             it[PostAppeals.status] = normalizedStatus
             it[PostAppeals.resolverId] = resolverId
@@ -451,14 +450,14 @@ class CommunityRepository(
 
     suspend fun listFlags(): List<ModerationRecordDto> = DatabaseFactory.dbQuery {
         PostFlags.selectAll()
-            .where { PostFlags.status eq ModerationRecordStatus.OPEN }
+            .where { PostFlags.status eq "OPEN" }
             .orderBy(PostFlags.createdAt, SortOrder.DESC)
             .map { it.toFlagDto() }
     }
 
     suspend fun listAppeals(): List<ModerationRecordDto> = DatabaseFactory.dbQuery {
         PostAppeals.selectAll()
-            .where { PostAppeals.status eq ModerationRecordStatus.OPEN }
+            .where { PostAppeals.status eq "OPEN" }
             .orderBy(PostAppeals.createdAt, SortOrder.DESC)
             .map { it.toAppealDto() }
     }

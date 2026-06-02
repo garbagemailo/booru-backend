@@ -279,7 +279,7 @@ class PostRepository(
                 .filter { row ->
                     val postId = row[Posts.id].value
                     PostAppeals.selectAll()
-                        .where { (PostAppeals.postId eq postId) and (PostAppeals.status eq ModerationRecordStatus.OPEN) }
+                        .where { (PostAppeals.postId eq postId) and (PostAppeals.status eq "OPEN") }
                         .count() == 0L
                 }
 

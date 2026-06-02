@@ -32,7 +32,6 @@ import ru.hwaarn.booru.model.CreateTagSubscriptionRequest
 import ru.hwaarn.booru.model.CreateUserBanRequest
 import ru.hwaarn.booru.model.CreateWikiPageRequest
 import ru.hwaarn.booru.model.ModerationRequest
-import ru.hwaarn.booru.model.ModerationRecordStatus
 import ru.hwaarn.booru.model.ModerationResolutionRequest
 import ru.hwaarn.booru.model.PostRating
 import ru.hwaarn.booru.model.PostStatus
@@ -99,8 +98,8 @@ fun Route.apiRoutes(
         route("/posts") {
             get {
                 val tags = call.request.queryParameters["tags"]
-                val page = call.request.queryParameters.page()
-                val limit = call.request.queryParameters.limit()
+                val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
                 call.respond(postRepository.searchPosts(tags, page, limit))
             }
             get("/count") {
@@ -291,8 +290,8 @@ fun Route.apiRoutes(
 
             get("/uploads") {
                 val session = call.requireSession()
-                val limit = call.request.queryParameters.uploadLimit()
-                call.respond(postRepository.listUploads(session.userId, limit))
+                val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+                call.respond(postRepository.listUploads(session.userId, limit.coerceIn(1, 100)))
             }
 
             route("/comments") {
@@ -379,8 +378,8 @@ fun Route.apiRoutes(
                     val ownerId = communityRepository.getSubscriptionOwnerId(id) ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("Subscription not found"))
                     call.requireOwnershipOrRole(ownerId, UserRole.MODERATOR, UserRole.ADMIN)
                     val subscription = communityRepository.getSubscription(id) ?: return@get call.respond(HttpStatusCode.NotFound, ApiError("Subscription not found"))
-                    val page = call.request.queryParameters.page()
-                    val limit = call.request.queryParameters.limit()
+                    val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 1
+                    val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 20
                     call.respond(postRepository.searchPosts(subscription.query, page, limit))
                 }
                 delete("/{id}") {
@@ -476,8 +475,8 @@ fun Route.apiRoutes(
                 }
                 get("/audit_logs") {
                     call.requireRole(UserRole.MODERATOR, UserRole.ADMIN)
-                    val limit = call.request.queryParameters.auditLimit()
-                    call.respond(auditRepository.list(limit))
+                    val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 100
+                    call.respond(auditRepository.list(limit.coerceIn(1, 500)))
                 }
                 post("/flags") {
                     val session = call.requireSession()
@@ -508,7 +507,7 @@ fun Route.apiRoutes(
                     if (record == null) {
                         call.respond(HttpStatusCode.NotFound, ApiError("Flag not found"))
                     } else {
-                        if (ModerationRecordStatus.isApproved(record.status)) {
+                        if (record.status.equals("APPROVED", ignoreCase = true)) {
                             postRepository.setStatus(record.postId, PostStatus.DELETED, session.userId)
                             auditRepository.log(session.userId, "post.delete.by_flag", "post", record.postId, "flag=$id")
                         }
@@ -525,7 +524,7 @@ fun Route.apiRoutes(
                     if (record == null) {
                         call.respond(HttpStatusCode.NotFound, ApiError("Appeal not found"))
                     } else {
-                        if (ModerationRecordStatus.isApproved(record.status)) {
+                        if (record.status.equals("APPROVED", ignoreCase = true)) {
                             postRepository.setStatus(record.postId, PostStatus.ACTIVE, session.userId)
                             auditRepository.log(session.userId, "post.restore.by_appeal", "post", record.postId, "appeal=$id")
                         }
